@@ -1,6 +1,66 @@
-# Pragmasoft project
+# Debouncer solution
 
-## Java 17 project template
+See Question 5 here:
+
+https://www.javaspecialists.eu/archive/Issue265-Threading-Questions-in-Job-Interviews-Part-1.html
+
+Sometimes we want to invoke a method call only once per time interval. Let's start with a simple interface Callback:
+
+```java
+public interface Callback<T> {
+  void call(T t);
+}
+```
+
+The Debouncer would extend that interface, but add the functionality to run the call only once per time interval. Thus if someone calls it 1000 times in a row, we still only call it once. The Debouncer follows the protection proxy design pattern, both in intent and in structure. Since it may start a background thread to manage the actual call, we give it a shutdown() method.
+
+```java
+public interface Debouncer<T> extends Callback<T> {
+  void shutdown();
+}
+```
+
+Implement the Debouncer interface so that the following test passes:
+
+```java
+// pass in Debouncer with interval of 1 second
+public void test(Debouncer<Runnable> db) throws InterruptedException {
+  AtomicInteger rx_count = new AtomicInteger();
+  AtomicInteger ry_count = new AtomicInteger();
+
+  Runnable rx = () -> {
+    System.out.println("x");
+    rx_count.incrementAndGet();
+  };
+  Runnable ry = () -> {
+    System.out.println("y");
+    ry_count.incrementAndGet();
+  };
+
+  for (int i = 0; i < 8; i++) {
+    Thread.sleep(50);
+    db.call(rx);
+    Thread.sleep(50);
+    db.call(ry);
+  }
+  Thread.sleep(200); // expecting x and y
+  assertEquals(1, rx_count.get());
+  assertEquals(1, ry_count.get());
+
+  for (int i = 0; i < 10000; i++) {
+    db.call(rx);
+  }
+  Thread.sleep(2_400); // expecting only x
+  assertEquals(2, rx_count.get());
+  assertEquals(1, ry_count.get());
+
+  db.call(ry);
+  Thread.sleep(1_100); // expecting only y
+  assertEquals(2, rx_count.get());
+  assertEquals(2, ry_count.get());
+  db.shutdown();
+}
+```
 
 ### Build
 
